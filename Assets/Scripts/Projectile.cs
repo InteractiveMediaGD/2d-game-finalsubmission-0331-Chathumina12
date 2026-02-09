@@ -37,11 +37,18 @@ public class Projectile : MonoBehaviour
         // Check if we hit an enemy
         if (other.CompareTag("Enemy"))
         {
-            // Notify the enemy to handle its destruction
+            // Try EnemyAntivirus first
             EnemyAntivirus enemy = other.GetComponent<EnemyAntivirus>();
             if (enemy != null)
             {
                 enemy.OnHitByProjectile();
+            }
+            
+            // Also try EnemyShooter
+            EnemyShooter shooter = other.GetComponent<EnemyShooter>();
+            if (shooter != null)
+            {
+                shooter.OnHitByProjectile();
             }
             
             // Destroy this projectile

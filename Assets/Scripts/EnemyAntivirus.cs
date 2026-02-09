@@ -50,19 +50,32 @@ public class EnemyAntivirus : MonoBehaviour
         // Check if we hit the player
         if (other.CompareTag("Player"))
         {
-            // Violent screen shake on damage
-            if (ScreenShakeController.Instance != null)
+            // Try to damage the player through PlayerHealthController
+            PlayerHealthController playerHealth = other.GetComponent<PlayerHealthController>();
+            if (playerHealth != null)
             {
-                ScreenShakeController.Instance.ShakeOnDamage();
+                // Only deal damage if player is not invincible
+                if (!playerHealth.IsInvincible)
+                {
+                    playerHealth.TakeDamage(10);
+                    
+                    // Violent screen shake on damage
+                    if (ScreenShakeController.Instance != null)
+                    {
+                        ScreenShakeController.Instance.ShakeOnDamage();
+                    }
+                }
+            }
+            else
+            {
+                // Fallback: Instant game over if no health controller
+                if (GameManager.Instance != null)
+                {
+                    GameManager.Instance.GameOver();
+                }
             }
             
-            // Trigger game over
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.GameOver();
-            }
-            
-            Debug.Log("Player hit by Antivirus! System Format initiated.");
+            Debug.Log("Player hit by Antivirus!");
         }
     }
 
@@ -71,9 +84,22 @@ public class EnemyAntivirus : MonoBehaviour
         // Backup collision check (if not using triggers)
         if (collision.gameObject.CompareTag("Player"))
         {
-            if (GameManager.Instance != null)
+            PlayerHealthController playerHealth = collision.gameObject.GetComponent<PlayerHealthController>();
+            if (playerHealth != null && !playerHealth.IsInvincible)
             {
-                GameManager.Instance.GameOver();
+                playerHealth.TakeDamage(10);
+                
+                if (ScreenShakeController.Instance != null)
+                {
+                    ScreenShakeController.Instance.ShakeOnDamage();
+                }
+            }
+            else if (playerHealth == null)
+            {
+                if (GameManager.Instance != null)
+                {
+                    GameManager.Instance.GameOver();
+                }
             }
         }
     }

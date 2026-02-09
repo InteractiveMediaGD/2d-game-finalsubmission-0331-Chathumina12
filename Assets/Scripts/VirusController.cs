@@ -166,5 +166,57 @@ public class VirusController : MonoBehaviour
         minY = newMinY;
         maxY = newMaxY;
     }
+
+    #region Rapid Fire System
+    // Rapid fire state
+    private bool isRapidFireActive = false;
+    private float normalFireRate;
+    private Coroutine rapidFireCoroutine;
+
+    /// <summary>
+    /// Activates rapid fire mode, decreasing the weapon cooldown temporarily.
+    /// Called by the PickupSystem when collecting a RapidFire pickup.
+    /// </summary>
+    /// <param name="duration">How long rapid fire lasts (seconds)</param>
+    /// <param name="multiplier">Fire rate multiplier (0.5 = 2x faster)</param>
+    public void ActivateRapidFire(float duration, float multiplier)
+    {
+        // Cancel existing rapid fire if active
+        if (rapidFireCoroutine != null)
+        {
+            StopCoroutine(rapidFireCoroutine);
+        }
+        
+        rapidFireCoroutine = StartCoroutine(RapidFireCoroutine(duration, multiplier));
+    }
+
+    /// <summary>
+    /// Coroutine that handles the rapid fire duration and restoration.
+    /// </summary>
+    private System.Collections.IEnumerator RapidFireCoroutine(float duration, float multiplier)
+    {
+        // Store normal fire rate if not already in rapid fire
+        if (!isRapidFireActive)
+        {
+            normalFireRate = fireRate;
+        }
+        
+        // Apply rapid fire
+        isRapidFireActive = true;
+        fireRate = normalFireRate * multiplier;
+        
+        Debug.Log($"Rapid Fire activated! Fire rate: {fireRate} (was {normalFireRate})");
+        
+        // Wait for duration
+        yield return new WaitForSeconds(duration);
+        
+        // Restore normal fire rate
+        fireRate = normalFireRate;
+        isRapidFireActive = false;
+        rapidFireCoroutine = null;
+        
+        Debug.Log($"Rapid Fire ended. Fire rate restored to: {fireRate}");
+    }
+    #endregion
 }
 
