@@ -1,46 +1,36 @@
 using UnityEngine;
 
 /// <summary>
-/// Scrolls background material UV based on player speed.
-/// Creates the "Flow State" visual effect where faster movement = faster background scroll.
+/// Multi-layer parallax background scroller.
+/// Attach one instance per background layer (far, mid, near).
+/// Each layer scrolls at a different speed creating depth.
+/// Supports both SpriteRenderer UV scrolling and Transform-based tiling scrolling.
 /// </summary>
 public class BackgroundScroller : MonoBehaviour
 {
-    [Header("Material Reference")]
-    [Tooltip("The background material with scrolling shader")]
-    [SerializeField] private Material backgroundMaterial;
-    
-    [Tooltip("If using a SpriteRenderer, assign it here instead")]
+    [Header("Material / Renderer")]
+    [Tooltip("SpriteRenderer whose material UV will be scrolled")]
     [SerializeField] private SpriteRenderer backgroundRenderer;
 
-    [Header("Scroll Settings")]
-    [Tooltip("Base scroll speed multiplier")]
-    [SerializeField] private float scrollMultiplier = 0.1f;
-    
-    [Tooltip("Scroll direction")]
+    [Header("Parallax Settings")]
+    [Tooltip("Fraction of GameManager scroll speed this layer moves at. 1 = full speed, 0.3 = far away.")]
+    [SerializeField] [Range(0.01f, 2f)] private float parallaxFactor = 0.5f;
+
+    [Header("Direction")]
     [SerializeField] private Vector2 scrollDirection = new Vector2(-1f, 0f);
 
-    [Header("Player Reference")]
-    [Tooltip("Reference to get current speed")]
-    [SerializeField] private VirusController player;
-
-    // Shader property names
-    private static readonly int MainTex = Shader.PropertyToID("_MainTex");
-    private static readonly int OffsetProperty = Shader.PropertyToID("_Offset");
-    
-    private Vector2 currentOffset = Vector2.zero;
+    // Internal
     private Material materialInstance;
+    private Vector2 currentUVOffset = Vector2.zero;
 
     private void Start()
     {
-        // Create material instance to avoid editing the original
+        if (backgroundRenderer == null) backgroundRenderer = GetComponent<SpriteRenderer>();
+
         if (backgroundRenderer != null)
         {
+            // Instantiating the material avoids modifying the shared asset
             materialInstance = backgroundRenderer.material;
-        }
-        else if (backgroundMaterial != null)
-        {
-            materialInstance = new Material(backgroundMaterial);
         }
     }
 
@@ -48,34 +38,16 @@ public class BackgroundScroller : MonoBehaviour
     {
         if (materialInstance == null) return;
 
-        // Get player speed (use default if no player assigned)
-        float speed = 5f;
-        if (player != null)
-        {
-            speed = player.CurrentSpeed;
-        }
+        float speed = GameManager.Instance != null ? GameManager.Instance.ScrollSpeed : 5f;
+        float scrollSpeed = speed * parallaxFactor;
 
-        // Calculate scroll offset based on speed
-        float scrollSpeed = speed * scrollMultiplier;
-        currentOffset += scrollDirection * scrollSpeed * Time.deltaTime;
-
-        // Apply offset to material
-        // Try standard texture offset first
-        materialInstance.SetTextureOffset("_MainTex", currentOffset);
-        
-        // If using custom shader, also try custom property
-        if (materialInstance.HasProperty("_Offset"))
-        {
-            materialInstance.SetVector("_Offset", new Vector4(currentOffset.x, currentOffset.y, 0, 0));
-        }
+        currentUVOffset += scrollDirection.normalized * scrollSpeed * Time.deltaTime * 0.05f;
+        materialInstance.SetTextureOffset("_MainTex", currentUVOffset);
     }
 
     private void OnDestroy()
     {
-        // Clean up material instance
-        if (materialInstance != null && backgroundRenderer == null)
-        {
+        if (materialInstance != null)
             Destroy(materialInstance);
-        }
     }
 }

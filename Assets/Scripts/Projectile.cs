@@ -1,7 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Projectile behavior - flies forward at high speed and destroys enemies.
+/// Player projectile — flies along transform.right at constant speed.
+/// Detects hits on Enemy, EnemyBody (boss), and Wall tags.
 /// </summary>
 public class Projectile : MonoBehaviour
 {
@@ -13,6 +14,10 @@ public class Projectile : MonoBehaviour
     [Tooltip("Time before auto-destroy (seconds)")]
     [SerializeField] private float lifetime = 3f;
 
+    [Header("Damage")]
+    [Tooltip("Damage dealt to the boss per hit")]
+    [SerializeField] private int bossDamage = 15;
+
     private Rigidbody2D rb;
 
     private void Awake()
@@ -22,40 +27,43 @@ public class Projectile : MonoBehaviour
 
     private void Start()
     {
-        // Set velocity to move right
+        // Fly along transform.right (inherits FirePoint rotation)
         if (rb != null)
         {
-            rb.velocity = new Vector2(speed, 0f);
+            rb.velocity = transform.right * speed;
         }
         
-        // Auto-destroy after lifetime expires
         Destroy(gameObject, lifetime);
     }
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        // Check if we hit an enemy
+        // --- Standard enemies (tagged "Enemy") ---
         if (other.CompareTag("Enemy"))
         {
-            // Try EnemyAntivirus first
             EnemyAntivirus enemy = other.GetComponent<EnemyAntivirus>();
-            if (enemy != null)
-            {
-                enemy.OnHitByProjectile();
-            }
+            if (enemy != null) enemy.OnHitByProjectile();
             
-            // Also try EnemyShooter
             EnemyShooter shooter = other.GetComponent<EnemyShooter>();
-            if (shooter != null)
-            {
-                shooter.OnHitByProjectile();
-            }
+            if (shooter != null) shooter.OnHitByProjectile();
             
-            // Destroy this projectile
             Destroy(gameObject);
+            return;
         }
         
-        // Optional: Destroy on hitting walls (firewalls)
+        // --- Boss (tagged "EnemyBody") ---
+        if (other.CompareTag("EnemyBody"))
+        {
+            SystemAdminBoss boss = other.GetComponent<SystemAdminBoss>();
+            if (boss != null)
+            {
+                boss.TakeDamage(bossDamage);
+            }
+            Destroy(gameObject);
+            return;
+        }
+        
+        // --- Walls / firewalls ---
         if (other.CompareTag("Wall"))
         {
             Destroy(gameObject);

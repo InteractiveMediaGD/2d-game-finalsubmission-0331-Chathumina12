@@ -165,13 +165,16 @@ public class PlayerHealthController : MonoBehaviour
     /// <param name="tag">Tag of the hit object</param>
     private void HandleCollision(GameObject hitObject, string tag)
     {
-        // Check if we hit an enemy projectile or body
-        if (tag == "EnemyProjectile" || tag == "EnemyBody")
+        // Safety check to dynamically identify any firewalls even if their tags were left blank
+        bool isFirewall = hitObject.GetComponentInParent<FirewallSegment>() != null;
+
+        // Check if we hit an enemy projectile, body, or the lethal firewalls!
+        if (tag == "EnemyProjectile" || tag == "EnemyBody" || tag == "Obstacle" || tag == "Firewall" || isFirewall)
         {
             // Take damage
             TakeDamage(collisionDamage);
 
-            // Destroy the projectile (but not enemy bodies)
+            // Destroy the projectile (but not enemy bodies or massive firewalls)
             if (tag == "EnemyProjectile")
             {
                 Destroy(hitObject);

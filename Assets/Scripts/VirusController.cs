@@ -43,7 +43,20 @@ public class VirusController : MonoBehaviour
     
     // Input
     private float inputY = 0f;
+    private float inputX = 0f;
     
+    [Header("Boss Fight Tracking")]
+    public bool isBossFightActive = false;
+    private float arenaMinX;
+    private float arenaMaxX;
+
+    [Header("Scale Override")]
+    [Tooltip("Enable to force-apply overrideScale at Awake (fixes tiny robot in environment)")]
+    [SerializeField] private bool applyScaleOverride = true;
+    
+    [Tooltip("Uniform scale to apply to the player robot at startup. Set to (1,1,1) to keep prefab default.")]
+    [SerializeField] private Vector3 overrideScale = new Vector3(1.5f, 1.5f, 1f);
+
     // Shooting
     private float nextFireTime = 0f;
 
@@ -57,6 +70,14 @@ public class VirusController : MonoBehaviour
             Debug.LogError("VirusController: Rigidbody2D component is missing!");
         }
         
+        // Apply scale correction so the robot player is visually proportionate
+        // to the firewall environment. Adjustable from the Inspector.
+        if (applyScaleOverride && overrideScale != Vector3.zero)
+        {
+            transform.localScale = overrideScale;
+            Debug.Log($"[VirusController] Scale override applied: {overrideScale}");
+        }
+        
         // Create firePoint if not assigned
         if (firePoint == null)
         {
@@ -67,42 +88,165 @@ public class VirusController : MonoBehaviour
         }
     }
 
+    [HideInInspector]
+    public GameObject deathParticlePrefab; // Assigned dynamically by SkinManager
+
+    private void Start()
+    {
+        ApplyEquippedSkin();
+    }
+
+    /// <summary>
+    /// Fetches the currently equipped skin from SkinManager and applies its visuals dynamically.
+    /// </summary>
+    private void ApplyEquippedSkin()
+    {
+        if (SkinManager.Instance != null)
+        {
+            SkinManager.Instance.ApplySkinToPlayer(this.gameObject);
+        }
+    }
+
+    /// <summary>
+    /// Optional hook for external systems (like HealthController) to spawn the actual death particles properly.
+    /// </summary>
+    public void SpawnDeathParticles()
+    {
+        if (deathParticlePrefab != null)
+        {
+            Instantiate(deathParticlePrefab, transform.position, Quaternion.identity);
+        }
+    }
+
+    private void Update()
+    {
+        if (Camera.main != null && firePoint != null && Mouse.current != null)
+        {
+            // Capture mouse position using the New Input System
+            Vector3 screenMousePos = Mouse.current.position.ReadValue();
+            Vector3 mousePosition = Camera.main.ScreenToWorldPoint(screenMousePos);
+            mousePosition.z = 0f;
+            
+            // Calculate direction from player to cursor
+            Vector3 direction = (mousePosition - transform.position).normalized;
+            
+            // Calculate angle and apply INSTANTLY — no lerp lag
+            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            firePoint.rotation = Quaternion.Euler(0, 0, angle);
+            
+            // Allow left mouse button to fire as well
+            if (Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                Fire();
+            }
+        }
+    }
+
     private void FixedUpdate()
     {
-        // Get speed from GameManager if available, otherwise use local speed
-        float speed = currentSpeed;
-        if (GameManager.Instance != null)
-        {
-            speed = GameManager.Instance.ScrollSpeed;
-        }
-        
-        // Auto-run: Strictly apply velocity to the X-axis
-        // Vertical movement is controlled by player input
-        rb.velocity = new Vector2(speed, inputY * verticalSpeed);
+        float speedMultiplier = GameManager.Instance != null ? (GameManager.Instance.ScrollSpeed / currentSpeed) : 1f;
 
-        // Clamp Y position to keep player within screen bounds
+        if (isBossFightActive)
+        {
+            // Explicitly read legacy Input axes so horizontal works without Input System mapping
+            float hInput = Input.GetAxis("Horizontal");
+            float vInput = Input.GetAxis("Vertical");  
+            
+            // Also merge any New Input System values that might be coming in
+            if (Mathf.Abs(inputX) > 0.01f) hInput = inputX;
+            if (Mathf.Abs(inputY) > 0.01f) vInput = inputY;
+            
+            rb.velocity = new Vector2(hInput * verticalSpeed, vInput * verticalSpeed);
+        }
+        else
+        {
+            // Auto-run: Strictly apply velocity to the X-axis based on game scrolling speed
+            float speed = currentSpeed;
+            if (GameManager.Instance != null)
+            {
+                speed = GameManager.Instance.ScrollSpeed;
+            }
+            rb.velocity = new Vector2(speed, inputY * verticalSpeed * speedMultiplier);
+        }
+
+        // Clamp position to keep player within screen bounds
         ClampPosition();
     }
 
     /// <summary>
-    /// Clamps the player's Y position within the defined screen bounds.
+    /// Clamps using Camera.main.ScreenToWorldPoint so the player NEVER leaves the visible screen.
     /// </summary>
     private void ClampPosition()
     {
-        Vector3 clampedPosition = transform.position;
-        clampedPosition.y = Mathf.Clamp(clampedPosition.y, minY, maxY);
-        transform.position = clampedPosition;
+        if (Camera.main != null)
+        {
+            // Calculate exact world-space screen edges from the camera viewport
+            Vector3 bottomLeft = Camera.main.ScreenToWorldPoint(new Vector3(0, 0, 0));
+            Vector3 topRight = Camera.main.ScreenToWorldPoint(new Vector3(Screen.width, Screen.height, 0));
+            
+            // Add small padding so the sprite doesn't clip the edge
+            float padding = 0.5f;
+            
+            Vector3 pos = transform.position;
+            pos.y = Mathf.Clamp(pos.y, bottomLeft.y + padding, topRight.y - padding);
+            
+            if (isBossFightActive)
+            {
+                pos.x = Mathf.Clamp(pos.x, bottomLeft.x + padding, topRight.x - padding);
+            }
+            
+            transform.position = pos;
+        }
+        else
+        {
+            // Fallback to hardcoded bounds
+            Vector3 pos = transform.position;
+            pos.y = Mathf.Clamp(pos.y, minY, maxY);
+            if (isBossFightActive)
+            {
+                pos.x = Mathf.Clamp(pos.x, arenaMinX, arenaMaxX);
+            }
+            transform.position = pos;
+        }
+    }
+
+    /// <summary>
+    /// Toggles boss fight movement rules.
+    /// </summary>
+    public void SetBossFightMode(bool isActive)
+    {
+        isBossFightActive = isActive;
+        if (isActive)
+        {
+            // Reset lingering inputs
+            inputX = 0f;
+            if (rb != null) rb.velocity = Vector2.zero;
+            Debug.Log("[VirusController] Boss Fight Mode ON — full movement unlocked, clamping via Camera viewport.");
+        }
+        else
+        {
+            inputX = 0f;
+            Debug.Log("[VirusController] Boss Fight Mode OFF — returning to auto-runner.");
+        }
     }
 
     /// <summary>
     /// Called by the Input System when vertical movement input is received.
-    /// Map this to your Move action's Y-axis (W/S or Up/Down arrows).
     /// </summary>
     /// <param name="context">Input action callback context</param>
     public void OnVerticalMove(InputAction.CallbackContext context)
     {
         // Read the vertical input value (-1 to 1)
         inputY = context.ReadValue<float>();
+    }
+
+    /// <summary>
+    /// Called by the Input System when horizontal movement input is received.
+    /// Map this to your Move action's X-axis (A/D or Left/Right arrows).
+    /// </summary>
+    public void OnHorizontalMove(InputAction.CallbackContext context)
+    {
+        inputX = context.ReadValue<float>();
     }
 
     /// <summary>
@@ -119,7 +263,8 @@ public class VirusController : MonoBehaviour
     }
 
     /// <summary>
-    /// Fires a projectile if enough time has passed since last shot.
+    /// Fires a projectile at the FirePoint position with its current rotation toward the mouse.
+    /// Speed is consistent regardless of angle since Projectile uses transform.right * speed.
     /// </summary>
     private void Fire()
     {
@@ -133,9 +278,13 @@ public class VirusController : MonoBehaviour
             return;
         }
         
-        // Spawn projectile at fire point
+        // Spawn projectile at fire point with the FirePoint's exact rotation
         Vector3 spawnPos = firePoint != null ? firePoint.position : transform.position;
-        Instantiate(projectilePrefab, spawnPos, Quaternion.identity);
+        Quaternion spawnRot = firePoint != null ? firePoint.rotation : Quaternion.identity;
+        Instantiate(projectilePrefab, spawnPos, spawnRot);
+        
+        // Play shooting sound
+        GameAudio.PlayerShoot();
         
         // Trigger screen shake (subtle)
         if (ScreenShakeController.Instance != null)
@@ -154,6 +303,14 @@ public class VirusController : MonoBehaviour
     public void SetVerticalInput(float value)
     {
         inputY = value;
+    }
+
+    /// <summary>
+    /// Alternative: Called by legacy Input System or for direct value setting.
+    /// </summary>
+    public void SetHorizontalInput(float value)
+    {
+        inputX = value;
     }
 
     /// <summary>

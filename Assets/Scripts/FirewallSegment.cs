@@ -90,4 +90,18 @@ public class FirewallSegment : MonoBehaviour
         if (bottomGapParticles != null)
             bottomGapParticles.Stop();
     }
+
+    /// <summary>
+    /// Ensures every SpriteRenderer on this segment (root and all children)
+    /// is enabled. Called by LevelGenerator.SpawnSegment() after pool reuse
+    /// so firewalls that were deactivated during a boss fight are fully visible.
+    /// </summary>
+    public void EnsureRenderersEnabled()
+    {
+        SpriteRenderer[] renderers = GetComponentsInChildren<SpriteRenderer>(includeInactive: true);
+        foreach (SpriteRenderer sr in renderers)
+        {
+            if (sr != null) sr.enabled = true;
+        }
+    }
 }

@@ -18,11 +18,19 @@ public class EnemyAntivirus : MonoBehaviour
     [Tooltip("Sound to play on death")]
     [SerializeField] private AudioClip deathSound;
 
+    public static event System.Action OnEnemyDestroyed;
+
     /// <summary>
     /// Called when hit by a projectile.
     /// </summary>
     public void OnHitByProjectile()
     {
+        OnEnemyDestroyed?.Invoke();
+
+        // Audio
+        GameAudio.EnemyHit();
+        GameAudio.EnemyDiedAntivirus();
+
         // Add score
         if (GameManager.Instance != null)
         {
@@ -33,12 +41,6 @@ public class EnemyAntivirus : MonoBehaviour
         if (deathEffectPrefab != null)
         {
             Instantiate(deathEffectPrefab, transform.position, Quaternion.identity);
-        }
-        
-        // Play death sound
-        if (deathSound != null)
-        {
-            AudioSource.PlayClipAtPoint(deathSound, transform.position);
         }
         
         // Destroy this enemy

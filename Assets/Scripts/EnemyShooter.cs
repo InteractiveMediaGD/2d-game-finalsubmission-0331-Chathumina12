@@ -123,10 +123,7 @@ public class EnemyShooter : MonoBehaviour
         }
         
         // Play shoot sound
-        if (shootSound != null)
-        {
-            AudioSource.PlayClipAtPoint(shootSound, transform.position);
-        }
+        GameAudio.EnemyShoot();
         
         Debug.Log("EnemyShooter fired at player!");
     }
@@ -148,11 +145,9 @@ public class EnemyShooter : MonoBehaviour
             Instantiate(deathEffectPrefab, transform.position, Quaternion.identity);
         }
         
-        // Play death sound
-        if (deathSound != null)
-        {
-            AudioSource.PlayClipAtPoint(deathSound, transform.position);
-        }
+        // Audio
+        GameAudio.EnemyHit();
+        GameAudio.EnemyDiedShooter();
         
         // Destroy this enemy
         Destroy(gameObject);

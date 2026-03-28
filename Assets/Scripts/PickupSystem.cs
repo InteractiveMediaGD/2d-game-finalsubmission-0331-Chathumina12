@@ -53,10 +53,12 @@ public class PickupSystem : MonoBehaviour
                 Instantiate(pickupEffectPrefab, transform.position, Quaternion.identity);
             }
             
-            // Play pickup sound
-            if (pickupSound != null)
+            // Play specific pickup sound based on type
+            switch (pickupType)
             {
-                AudioSource.PlayClipAtPoint(pickupSound, transform.position);
+                case PickupType.HealthPack: GameAudio.GotHealth(); break;
+                case PickupType.RapidFire: GameAudio.GotRapidFire(); break;
+                case PickupType.Shield: GameAudio.GotShield(); break;
             }
             
             Debug.Log($"Player collected {pickupType} pickup!");

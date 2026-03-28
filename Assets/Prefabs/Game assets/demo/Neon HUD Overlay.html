@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEON FURY - HUD Overlay</title>
+    <!-- Sci-fi Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* =========================================
+           1. CSS VARIABLES (Theme Configuration)
+           ========================================= */
+        :root {
+            /* Core Backgrounds for Demo */
+            --bg-color: #050505;
+            
+            /* HUD Colors */
+            --hp-color: #ff0055; /* Neon Red/Pink */
+            --mp-color: #00f2ff; /* Neon Cyan */
+            --sp-color: #ccff00; /* Neon Yellow */
+            --hud-frame-color: rgba(0, 242, 255, 0.4);
+            --hud-bg: rgba(5, 5, 5, 0.6);
+
+            /* Glow Intensities */
+            --glow-spread-sm: 5px;
+            --glow-spread-md: 15px;
+            --glow-spread-lg: 30px;
+        }
+
+        /* =========================================
+           2. BASE SETUP (For Demo Purposes)
+           ========================================= */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            /* Adding a subtle dark grid to simulate a game environment background */
+            background-image: 
+                linear-gradient(rgba(0, 242, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 242, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: #ffffff;
+            font-family: 'Rajdhani', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* =========================================
+           3. HUD LAYOUT & FRAMING
+           ========================================= */
+        .hud-container {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            z-index: 100;
+        }
+
+        /* Character/Class Portrait Frame */
+        .portrait-frame {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            background: var(--hud-bg);
+            border: 2px solid var(--hud-frame-color);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            /* Sharp, angular military sci-fi cutouts */
+            clip-path: polygon(
+                15px 0, 
+                100% 0, 
+                100% calc(100% - 25px), 
+                calc(100% - 25px) 100%, 
+                0 100%, 
+                0 15px
+            );
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 
+                0 0 15px rgba(0, 242, 255, 0.1), 
+                inset 0 0 20px rgba(0, 242, 255, 0.2);
+        }
+
+        /* Inner geometric detail for the portrait */
+        .portrait-inner {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, rgba(0, 242, 255, 0.1), transparent);
+            border: 1px solid var(--hud-frame-color);
+            clip-path: polygon(
+                10px 0, 
+                100% 0, 
+                100% calc(100% - 15px), 
+                calc(100% - 15px) 100%, 
+                0 100%, 
+                0 10px
+            );
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Placeholder icon inside portrait */
+        .portrait-inner::after {
+            content: '';
+            width: 40px;
+            height: 40px;
+            background-color: var(--hud-frame-color);
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            animation: pulseGlow 3s infinite alternate;
+        }
+
+        /* Status Bars Container */
+        .status-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 300px;
+        }
+
+        .bar-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .bar-label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            opacity: 0.9;
+            text-shadow: 0 0 5px currentColor;
+        }
+
+        /* =========================================
+           4. PROGRESS BARS STYLING
+           ========================================= */
+        .bar-track {
+            position: relative;
+            width: 100%;
+            height: 16px;
+            background: var(--hud-bg);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            /* Angled ends for the track */
+            clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 100%; /* Default starting width */
+            transition: width 0.3s ease; /* Smooth depletion/refill */
+            clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+            
+            /* Diagonal striped pattern overlay */
+            background-image: repeating-linear-gradient(
+                -45deg,
+                rgba(255, 255, 255, 0.2),
+                rgba(255, 255, 255, 0.2) 10px,
+                transparent 10px,
+                transparent 20px
+            );
+            background-size: 28px 100%; 
+            animation: moveStripes 1s linear infinite;
+        }
+
+        /* Specific Colors & Neon Glows */
+        .hp-fill {
+            background-color: var(--hp-color);
+            box-shadow: 0 0 var(--glow-spread-md) var(--hp-color), inset 0 0 8px #fff;
+            border-right: 2px solid #fff;
+        }
+
+        .mp-fill {
+            background-color: var(--mp-color);
+            box-shadow: 0 0 var(--glow-spread-md) var(--mp-color), inset 0 0 8px #fff;
+            border-right: 2px solid #fff;
+        }
+
+        .sp-fill {
+            background-color: var(--sp-color);
+            box-shadow: 0 0 var(--glow-spread-md) var(--sp-color), inset 0 0 8px #fff;
+            border-right: 2px solid #fff;
+        }
+
+        /* =========================================
+           5. EFFECTS & ANIMATIONS
+           ========================================= */
+        /* Moving diagonal stripes */
+        @keyframes moveStripes {
+            0% { background-position: 0 0; }
+            100% { background-position: 28px 0; } /* 28px matches the repeating gradient size */
+        }
+
+        /* Portrait Icon slow pulse */
+        @keyframes pulseGlow {
+            0% { opacity: 0.5; filter: drop-shadow(0 0 5px var(--hud-frame-color)); }
+            100% { opacity: 1; filter: drop-shadow(0 0 15px var(--hud-frame-color)); }
+        }
+
+        /* Low HP Danger State Animation */
+        .danger-state {
+            animation: dangerPulse 0.3s ease-in-out infinite alternate, moveStripes 1s linear infinite;
+        }
+
+        @keyframes dangerPulse {
+            0% { 
+                box-shadow: 0 0 10px var(--hp-color), inset 0 0 5px #fff; 
+                filter: brightness(1);
+            }
+            100% { 
+                box-shadow: 0 0 35px var(--hp-color), 0 0 60px var(--hp-color), inset 0 0 15px #fff; 
+                filter: brightness(1.8);
+                background-color: #ff3377;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- HUD Overlay -->
+    <div class="hud-container">
+        
+        <!-- Portrait / Class Frame -->
+        <div class="portrait-frame">
+            <div class="portrait-inner"></div>
+        </div>
+
+        <!-- Status Bars -->
+        <div class="status-bars">
+            
+            <!-- Health Points -->
+            <div class="bar-group">
+                <div class="bar-label" style="color: var(--hp-color);">HP // SYS.HLT</div>
+                <div class="bar-track">
+                    <div class="bar-fill hp-fill" id="hp-bar" style="width: 100%;"></div>
+                </div>
+            </div>
+
+            <!-- Mana / Energy -->
+            <div class="bar-group">
+                <div class="bar-label" style="color: var(--mp-color);">MP // SYS.ENG</div>
+                <div class="bar-track">
+                    <div class="bar-fill mp-fill" id="mp-bar" style="width: 100%;"></div>
+                </div>
+            </div>
+
+            <!-- Stamina / Shield -->
+            <div class="bar-group">
+                <div class="bar-label" style="color: var(--sp-color);">SP // SYS.STM</div>
+                <div class="bar-track">
+                    <div class="bar-fill sp-fill" id="sp-bar" style="width: 100%;"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- JavaScript Demonstration Logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const hpBar = document.getElementById('hp-bar');
+            const mpBar = document.getElementById('mp-bar');
+            const spBar = document.getElementById('sp-bar');
+            
+            // Starting Values
+            let currentHp = 100;
+            let currentMp = 100;
+            let currentSp = 100;
+            
+            // Simulation Loop
+            setInterval(() => {
+                // Simulate taking damage and occasionally healing
+                // Biased towards losing health to demonstrate the danger state
+                const hpChange = Math.random() > 0.8 ? 25 : -18; 
+                currentHp = Math.max(5, Math.min(100, currentHp + hpChange)); // Keep between 5 and 100
+                
+                // Simulate Mana and Stamina usage
+                currentMp = Math.max(10, Math.min(100, currentMp + (Math.random() * 30 - 15)));
+                currentSp = Math.max(10, Math.min(100, currentSp + (Math.random() * 40 - 20)));
+                
+                // Apply new widths (CSS transitions handle the smooth animation)
+                hpBar.style.width = `${currentHp}%`;
+                mpBar.style.width = `${currentMp}%`;
+                spBar.style.width = `${currentSp}%`;
+                
+                // Trigger intense flashing danger state if HP drops at or below 30%
+                if (currentHp <= 30) {
+                    hpBar.classList.add('danger-state');
+                    // Add a glitch effect to the label when health is critical
+                    hpBar.parentElement.previousElementSibling.style.transform = `translate(${Math.random() * 4 - 2}px, ${Math.random() * 4 - 2}px)`;
+                } else {
+                    hpBar.classList.remove('danger-state');
+                    hpBar.parentElement.previousElementSibling.style.transform = 'none';
+                }
+            }, 1200); // Update every 1.2 seconds for the demo
+        });
+    </script>
+</body>
+</html>

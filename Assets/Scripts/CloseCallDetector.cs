@@ -68,12 +68,15 @@ public class CloseCallDetector : MonoBehaviour
         return distance;
     }
 
+    public static event System.Action OnCloseCallTriggered;
+
     /// <summary>
     /// Triggers the close call effects.
     /// </summary>
     private void TriggerCloseCall()
     {
         lastCloseCallTime = Time.time;
+        OnCloseCallTriggered?.Invoke();
 
         // Screen shake
         if (ScreenShakeController.Instance != null)
