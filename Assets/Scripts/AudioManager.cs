@@ -89,6 +89,33 @@ public class AudioManager : MonoBehaviour
         Instance.StartCoroutine(Instance.DoCrossfade(clipName, duration));
     }
 
+    /// <summary>
+    /// Update the SFX volume in real-time. Call this from UI Volume Sliders.
+    /// </summary>
+    public void SetSFXVolume(float volume)
+    {
+        sfxVolume = Mathf.Clamp01(volume);
+        foreach (var src in sfxPool)
+        {
+            if (src != null)
+            {
+                src.volume = sfxVolume * masterVolume;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Update the Background Music volume in real-time. Call this from UI Volume Sliders.
+    /// </summary>
+    public void SetMusicVolume(float volume)
+    {
+        musicVolume = Mathf.Clamp01(volume);
+        if (musicSource != null)
+        {
+            musicSource.volume = musicVolume * masterVolume;
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     //  Internal helpers
     // ─────────────────────────────────────────────────────────────────────────
